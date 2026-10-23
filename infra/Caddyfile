@@ -1,0 +1,19 @@
+{$APP_DOMAIN} {
+    encode zstd gzip
+    header {
+        X-Content-Type-Options nosniff
+        Referrer-Policy same-origin
+        Permissions-Policy "geolocation=(self), camera=(self), microphone=()"
+        X-Frame-Options DENY
+    }
+    @backend path /api/* /admin /admin/* /admin.js /admin.css /health /ready
+    handle @backend {
+        reverse_proxy api:8000
+    }
+    handle {
+        root * /srv
+        try_files {path} /index.html
+        header Cache-Control "no-cache"
+        file_server
+    }
+}

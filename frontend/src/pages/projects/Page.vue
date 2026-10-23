@@ -1,0 +1,12 @@
+<script lang="ts">
+import { defineComponent } from "vue";
+import definition from "./logic";
+import { UsePage } from "../../web/page";
+export default defineComponent({setup(){return UsePage(definition);}});
+</script>
+<template><div class="web-page"><nt-header :brand="Safe(() =&gt; (false))" :back="true" title="我的笔记"></nt-header><div class="page"><div class="row between"><span class="h2">你的笔记与设计</span><button class="primary mini round" @click="Dispatch('create', $event)">＋ 新建笔记</button></div><nt-state :loading="Safe(() =&gt; (loading))" :error="Safe(() =&gt; (error))" :empty="Safe(() =&gt; (!loading &amp;&amp; !items.length))" message="新建笔记，开始记录自然观察" @retry="Dispatch('load', $event)"></nt-state><template v-for="(item, index) in Safe(() => (items))" :key="index"><div class="card project section"><div class="project-cover" @click="Dispatch('Open', $event)" :data-id="Safe(() =&gt; (item.id))"><img v-if="Safe(() =&gt; (item.cover_url))" :src="Safe(() =&gt; (item.cover_url))" mode="aspectFill"></img><div v-else class="placeholder">{{item.layout.designMode==='manual'?'手动设计':'自然观察笔记'}} <span >✎</span></div></div><div class="card-info row"><div class="grow" @click="Dispatch('Open', $event)" :data-id="Safe(() =&gt; (item.id))"><div class="h3">{{ Safe(() => (item.title)) }}</div><div class="small muted">{{ Safe(() => (item.id===current?'· 当前笔记':'')) }}</div></div><button class="mini" @click="Dispatch('Open', $event)" :data-id="Safe(() =&gt; (item.id))">查看笔记</button><span class="remove muted" @click="Dispatch('remove', $event)" :data-id="Safe(() =&gt; (item.id))">×</span></div></div></template></div><div v-if="Safe(() =&gt; (showCreate))" class="sheet-mask" @click="Dispatch('close', $event)"><div class="sheet" @click.stop.prevent="Dispatch('noop', $event)"><div class="sheet-title"><span class="h2">新建笔记</span><button class="close" @click="Dispatch('close', $event)">×</button></div><input class="input" :value="Safe(() =&gt; (title))" @input="Dispatch('input', $event)" placeholder="笔记名称" maxlength="60"></input><button class="primary section" @click="Dispatch('save', $event)">创建并开始观察</button></div></div>
+</div></template>
+<style scoped>
+.project-cover{height:105px;background:#fff8e1}.project-cover img{width:100%;height:100%}.placeholder{height:100%;display:flex;align-items:center;justify-content:center;font-size:17px;color:#776b4a;gap:17.5px}.placeholder span{font-size:37.5px;color:#a8b17e}.remove{font-size:18.5px;padding:6px}
+
+</style>

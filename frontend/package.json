@@ -1,0 +1,26 @@
+{
+  "name": "nature-note-web",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "build": "npm run build:admin && vite build && node scripts/build-offline.mjs",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "build:admin": "node scripts/build-admin.mjs"
+  },
+  "dependencies": {
+    "coordtransform": "^2.1.2",
+    "idb": "^8.0.0",
+    "vue": "^3.5.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^6.0.0",
+    "esbuild": "0.28.2",
+    "miniprogram-api-typings": "^4.0.8",
+    "typescript": "~5.9.3",
+    "vite": "^7.1.0",
+    "vitest": "^3.2.0"
+  }
+}

@@ -1,0 +1,16 @@
+<script lang="ts">
+import { defineComponent } from "vue";
+import definition from "./logic";
+import { UsePage } from "../../web/page";
+export default defineComponent({setup(){return UsePage(definition);}});
+</script>
+<template><div class="web-page"><nt-header :brand="Safe(() =&gt; (false))" :back="true" title="反馈与设置"></nt-header><div class="page"><div class="surface"><div class="h2">本机存储</div><div class="small muted">本机记录缓存约 {{ Safe(() => (storageSize)) }} KB（不含照片） · 本账号待同步批次 {{ Safe(() => (pendingCount)) }}</div><button class="section" @click="Dispatch('ClearCache', $event)">清理可下载缓存</button></div>
+<div class="surface section"><div class="h2">意见反馈</div><div v-if="Safe(() =&gt; (restricted))" class="orange">账号已暂停使用，仅可提交文字申诉和查看回复。</div><WebPicker :disabled="Safe(() =&gt; (restricted))" :range="Safe(() =&gt; (categories))" :value="Safe(() =&gt; (categoryIndex))" @change="Dispatch('Category', $event)"><div class="section">问题类型：{{ Safe(() => (categories[categoryIndex])) }} ›</div></WebPicker><textarea class="textarea" :value="Safe(() =&gt; (text))" @input="Dispatch('Input', $event)" placeholder="描述遇到的问题" maxlength="5000"></textarea><div class="row"><template v-for="(item, index) in Safe(() => (assets))" :key="index"><img :src="Safe(() =&gt; (item.thumbnail_url||item.url))" style="width:120rpx;height:120rpx"></img></template></div><button class="section" @click="Dispatch('Image', $event)" :disabled="Safe(() =&gt; (restricted||assets.length&gt;=3))">添加截图 {{ Safe(() => (assets.length)) }}/3</button><button class="primary section" @click="Dispatch('Submit', $event)" :loading="Safe(() =&gt; (busy))" :disabled="Safe(() =&gt; (busy))">提交反馈</button></div>
+<template v-for="(item, index) in Safe(() => (corrections))" :key="index"><div class="surface section"><div class="h3">物种更正建议：{{ Safe(() => (item.name)) }}</div><div >{{ Safe(() => (item.scientific_name)) }}</div><div >{{ Safe(() => (item.reason)) }}</div><div v-if="Safe(() =&gt; (item.status===&#x27;pending&#x27;))" class="row"><button :data-id="Safe(() =&gt; (item.id))" :data-accept="Safe(() =&gt; (true))" @click="Dispatch('Correction', $event)">接受更正</button><button :data-id="Safe(() =&gt; (item.id))" :data-accept="Safe(() =&gt; (false))" @click="Dispatch('Correction', $event)">保留原判断</button></div><div v-else class="small muted">已处理</div></div></template>
+<template v-for="(item, index) in Safe(() => (items))" :key="index"><div class="surface section"><div class="h3">{{ Safe(() => (item.status==='resolved'?'已解决':item.status==='processing'?'处理中':'待处理')) }}</div><div >{{ Safe(() => (item.text)) }}</div><template v-for="(reply, index) in Safe(() => (item.replies))" :key="index"><div class="section small">{{ Safe(() => (reply.role==='admin'?'管理员':'我')) }}：{{ Safe(() => (reply.text)) }}</div></template><button :data-id="Safe(() =&gt; (item.id))" @click="Dispatch('Reply', $event)">补充说明</button></div></template>
+<template v-for="(item, index) in Safe(() => (announcements))" :key="index"><div class="surface section"><div class="h2">{{ Safe(() => (item.title)) }}</div><div class="description">{{ Safe(() => (item.text)) }}</div></div></template></div>
+</div></template>
+<style scoped>
+textarea{width:100%}.description{white-space:pre-wrap;line-height:1.8}
+
+</style>

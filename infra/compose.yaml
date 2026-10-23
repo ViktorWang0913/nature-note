@@ -1,0 +1,83 @@
+name: naturenote-web
+services:
+  edge:
+    image: caddy:2-alpine
+    environment:
+      APP_DOMAIN: ${APP_DOMAIN:?Set APP_DOMAIN}
+    ports: ["80:80", "443:443"]
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ../frontend/dist:/srv:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      api: {condition: service_healthy}
+    restart: unless-stopped
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: nature
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}
+      POSTGRES_DB: nature_web
+    volumes: ["postgres_data:/var/lib/postgresql/data"]
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U nature -d nature_web"]
+      interval: 5s
+      retries: 20
+    restart: unless-stopped
+  redis:
+    image: redis:7-alpine
+    command: [redis-server, --appendonly, "yes"]
+    volumes: ["redis_data:/data"]
+    restart: unless-stopped
+  api:
+    build: {context: .., dockerfile: infra/Dockerfile}
+    image: naturenote-web:${RELEASE_TAG:-local}
+    env_file: production.env
+    environment: &runtime
+      DATABASE_URL: postgresql+psycopg://nature:${POSTGRES_PASSWORD}@db:5432/nature_web
+      REDIS_URL: redis://redis:6379/0
+      APP_ENV: production
+      ENABLE_DEV_AUTH: "false"
+      QUEUE_BACKEND: celery
+      STORAGE_BACKEND: local
+      STORAGE_DIR: /app/data/files
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:?Set PUBLIC_BASE_URL}
+    command: [sh, -c, "python -m alembic upgrade head && python -m app.web_seed && exec python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --proxy-headers --forwarded-allow-ips='*'"]
+    volumes: ["media_data:/app/data"]
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/ready', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      start_period: 60s
+      retries: 18
+    depends_on:
+      db: {condition: service_healthy}
+      redis: {condition: service_started}
+    restart: unless-stopped
+  worker:
+    image: naturenote-web:${RELEASE_TAG:-local}
+    pull_policy: never
+    env_file: production.env
+    environment: *runtime
+    command: [celery, -A, app.jobs.celery_app, worker, --loglevel=INFO, --concurrency=20, --prefetch-multiplier=1]
+    volumes: ["media_data:/app/data"]
+    depends_on:
+      api: {condition: service_healthy}
+    restart: unless-stopped
+  scheduler:
+    image: naturenote-web:${RELEASE_TAG:-local}
+    pull_policy: never
+    env_file: production.env
+    environment: *runtime
+    command: [celery, -A, app.jobs.celery_app, beat, --loglevel=INFO, --schedule=/tmp/celerybeat-schedule]
+    volumes: ["media_data:/app/data"]
+    depends_on:
+      api: {condition: service_healthy}
+    restart: unless-stopped
+volumes:
+  postgres_data:
+  redis_data:
+  media_data:
+  caddy_data:
+  caddy_config:

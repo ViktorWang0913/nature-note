@@ -1,0 +1,20 @@
+<script lang="ts">
+import { defineComponent } from "vue";
+import definition from "./logic";
+import { UsePage } from "../../web/page";
+export default defineComponent({setup(){return UsePage(definition);}});
+</script>
+<template><div class="web-page"><nt-header :brand="Safe(() =&gt; (false))" :back="true" title="物种详情"></nt-header><div class="page with-action"><nt-state :loading="Safe(() =&gt; (loading))" :error="Safe(() =&gt; (error))" @retry="Dispatch('load', $event)"></nt-state>
+<template v-if="Safe(() =&gt; (species))"><div class="hero"><img class="hero-image" :src="Safe(() =&gt; (species.image_url||allPhotos[0].url))" mode="aspectFill" @click="Dispatch('preview', $event)" :data-url="Safe(() =&gt; (species.image_url||allPhotos[0].url))"></img><span class="photo-count">{{ Safe(() => (allPhotos.length)) }} 张观察照片</span></div>
+<div class="row between section"><span class="species-name">{{ Safe(() => (species.name)) }}</span><span class="recorded">♧ {{ Safe(() => (allPhotos.length?'已记录':'待记录')) }} · {{ Safe(() => (allPhotos.length)) }} 张照片</span></div><div class="muted section-little">学名 {{ Safe(() => (species.scientific_name)) }}</div>
+<div class="description" @click="Dispatch('knowledge', $event)">{{ Safe(() => (species.description)) }}<span class="link small"> 问问自然记 ›</span></div>
+<div class="row between section"><span class="h2">我的观察照片</span><span class="muted small" @click="Dispatch('more', $event)">{{ Safe(() => (showAll?'收起':'查看全部')) }} ›</span></div>
+<div class="row section"><button @click="Dispatch('Add', $event)">添加照片</button><button @click="Dispatch('Cover', $event)" :disabled="Safe(() =&gt; (!selected))">设为封面</button></div><div class="grid2 section"><template v-for="(item, index) in Safe(() => (photos))" :key="index"><div class="card"><div class="photo-wrap"><img class="photo" :src="Safe(() =&gt; (item.url))" mode="aspectFill" @click="Dispatch('preview', $event)" :data-url="Safe(() =&gt; (item.url))"></img><span :class="&quot;select &quot; + String(Safe(() =&gt; (selected===item.id?&#x27;selected&#x27;:&#x27;&#x27;)) ?? &quot;&quot;)" @click="Dispatch('select', $event)" :data-id="Safe(() =&gt; (item.id))">{{ Safe(() => (selected===item.id?'✓':'')) }}</span></div><div class="row between card-info"><span class="small muted">{{ Safe(() => (item.date||'观察照片')) }}</span><span class="menu" :data-id="Safe(() =&gt; (item.id))" @click="Dispatch('menu', $event)">•••</span></div></div></template></div>
+<div v-if="Safe(() =&gt; (!allPhotos.length))" class="empty">还没有属于这个物种的观察照片<button class="soft section" @click="Dispatch('Add', $event)">从图库选择照片并确认物种</button></div></template></div>
+<div class="fixed-action"><div class="grow"><div class="h3">已选择 <span class="orange">{{ Safe(() => (selected?1:0)) }}</span> 张照片</div><span class="small muted">加入当前项目</span></div><button class="primary" @click="Dispatch('use', $event)" :disabled="Safe(() =&gt; (!selected))">使用这张照片</button></div>
+<div class="page"><button v-if="Safe(() =&gt; (next))" @click="Dispatch('LoadMore', $event)">加载更早的照片</button></div>
+</div></template>
+<style scoped>
+.hero{position:relative}.hero-image{width:100%;height:227.5px;border-radius:13px;background:var(--nn-soft)}.photo-count{position:absolute;bottom:8.5px;right:9px;background:#0007;color:#fff;padding:4px 9.5px;border-radius:12.5px;font-size:11.5px}.species-name{font-size:24.5px;font-weight:750}.recorded{font-size:11.5px;background:#ecf6e9;color:#438147;border-radius:14px;padding:6px 8.5px}.section-little{margin-top:4.5px;font-size:13px}.description{line-height:1.8;margin-top:13.5px;font-size:13.5px;white-space:pre-wrap}.photo-wrap{position:relative}.photo-wrap .photo{height:143.5px}.select{position:absolute;right:7.5px;top:7.5px;width:20px;height:20px;border-radius:50%;border:1.5px solid #fff;background:#0001;text-align:center;line-height:16.5px;color:#fff;font-size:13px}.select.selected{background:var(--nn-accent)}.menu{min-width:27.5px;text-align:right}.fixed-action .grow{flex:1.1}.fixed-action button{font-size:14px;padding:11px 7.5px}.citation{border-top:0.5px solid #e6e9ed;padding:10px 0;line-height:1.7;font-size:12.5px}
+
+</style>

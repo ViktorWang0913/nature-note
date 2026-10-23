@@ -1,0 +1,1 @@
+{"compilerOptions":{"target":"ES2022","module":"ESNext","moduleResolution":"Bundler","lib":["ES2022","DOM","DOM.Iterable"],"strict":false,"noEmit":true,"skipLibCheck":true,"allowImportingTsExtensions":true,"types":["vite/client","miniprogram-api-typings"]},"include":["src/**/*.ts","src/**/*.d.ts"],"exclude":["src/**/*.test.ts"]}

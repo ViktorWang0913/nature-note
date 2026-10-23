@@ -1,0 +1,56 @@
+/* 数字标本：仅定义界面外观，不参与作品渲染和布局计算。 */
+:root {
+  --nn-paper:#f0ebdd;
+  --nn-panel:#faf9f3;
+  --nn-soft:#eaece3;
+  --nn-selected:#dde6d9;
+  --nn-workspace:#e8e9df;
+  --nn-accent:#253f33;
+  --nn-pressed:#193126;
+  --nn-ink:#182c28;
+  --nn-muted:#606c63;
+  --nn-line:#d6dcd2;
+  --nn-danger:#a33c30;
+  --nn-disabled:#e0e3d9;
+  --nn-disabled-ink:#677168;
+  --nn-focus:#397c86;
+}
+body,.web-page,.work-page,.login-page{background:var(--nn-paper);color:var(--nn-ink)}
+body{--orange:var(--nn-accent);--muted:var(--nn-muted);--surface:var(--nn-soft);--line:var(--nn-line)}
+button{border-radius:8px;transition:background-color .12s,color .12s,border-color .12s; -webkit-tap-highlight-color:transparent}
+button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px solid var(--nn-focus);outline-offset:3px}
+button:active:not(:disabled){filter:brightness(.94)}
+button:disabled,button[disabled]{opacity:1;color:var(--nn-disabled-ink);cursor:default}
+button.primary:disabled,.save-group button:disabled,.green-button:disabled,.send-button:disabled{background:var(--nn-disabled)!important;color:var(--nn-disabled-ink)!important}
+input[type=range],input[type=checkbox],progress{accent-color:var(--nn-accent)}
+input[type=number],output,.stats,.view-tools>span,.save-state{font-variant-numeric:tabular-nums}
+input,textarea{color:var(--nn-ink)}
+input::placeholder,textarea::placeholder{color:var(--nn-muted)}
+a{color:var(--nn-accent)}
+.primary,.green-button{font-weight:600;border-radius:8px}
+.web-header,.web-tabs{background:var(--nn-panel)}
+.web-brand{color:var(--nn-accent);letter-spacing:.5px}
+.web-tabs button.selected{color:var(--nn-accent);font-weight:600}
+.web-tabs button{color:var(--nn-muted)}
+.web-tabs,.fixed-action,.sheet-title{border-color:var(--nn-line)}
+.card,.surface{border-radius:10px}
+.card{border-color:var(--nn-line)}
+.sheet,.web-dialog{border-radius:14px 14px 0 0;background:var(--nn-panel)}
+.web-dialog{border-radius:12px;border:1px solid var(--nn-line)}
+.close{border-radius:8px}
+.input,.textarea,.login-card input{border:1px solid var(--nn-line);border-radius:8px;background:var(--nn-panel)}
+.login-card{border-radius:12px;border:1px solid var(--nn-line);box-shadow:0 8px 28px #253f330a}
+.login-brand{letter-spacing:2px}
+.web-toast{background:#253f33ed;border-radius:8px}
+.chip,.search{border-radius:8px}
+.hint,.field-hint,.muted{line-height:1.6}
+.danger,.history-delete,.login-error{color:var(--nn-danger)}
+/* 共享对话区仍沿用现有分栏、滚动和输入布局。 */
+.work-page{--work-ink:var(--nn-ink);--work-muted:var(--nn-muted);--work-accent:var(--nn-accent);--work-line:var(--nn-line)}
+.compose-box{background:var(--nn-panel);box-shadow:none;border-radius:10px}
+.compose-box:focus-within{border-color:var(--nn-accent);box-shadow:0 0 0 2px #253f3310}
+.work-composer{background:var(--nn-paper)}
+.message-user{background:var(--nn-soft);border-color:var(--nn-line)}
+.work-page .rail-session.active{background:var(--nn-selected);color:var(--nn-accent)}
+@media(hover:hover){button:not(:disabled):hover{box-shadow:inset 0 0 0 1px #253f3320}}
+@media(prefers-reduced-motion:reduce){button{transition:none}}
