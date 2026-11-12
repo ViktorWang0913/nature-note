@@ -40,7 +40,14 @@ def test_private_atlas_empty_confirmation_merge_and_reclassification(client, use
     changed = client.patch('/api/v1/observations/' + record['id'], headers=firstHeaders, json={'species_name': '麻雀', 'scientific_name': 'Passer montanus'})
     assert changed.status_code == 200, changed.text
     assert changed.json()['species_id'] != record['species_id']
-    assert len(client.get('/api/v1/atlas', headers=firstHeaders).json()['items']) == 2
+    firstPage = client.get('/api/v1/atlas?limit=1', headers=firstHeaders).json()
+    assert len(firstPage['items']) == 1 and firstPage['total'] == 2
+    secondPage = client.get('/api/v1/atlas', params={'limit': 1, 'cursor': firstPage['next_cursor']}, headers=firstHeaders).json()
+    assert len(secondPage['items']) == 1 and secondPage['total'] == 2
+    assert secondPage['items'][0]['id'] != firstPage['items'][0]['id']
+    filtered = client.get('/api/v1/atlas?q=麻雀', headers=firstHeaders).json()
+    assert filtered['total'] == 1 and filtered['items'][0]['name'] == '麻雀'
+    assert client.get('/api/v1/atlas', headers=secondHeaders).json()['total'] == 0
     assert client.delete('/api/v1/observations/' + record['id'], headers=firstHeaders).status_code == 200
     assert len(client.get('/api/v1/atlas', headers=firstHeaders).json()['items']) == 1
     assert client.get('/api/v1/assets/' + firstPhoto['id'], headers=firstHeaders).status_code == 200

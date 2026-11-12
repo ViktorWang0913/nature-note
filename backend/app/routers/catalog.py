@@ -56,7 +56,7 @@ def species_list(q: str = '', sort: str = 'category', cursor: str | None = None,
     except Exception:
         fail(422, 'invalid_cursor', '分页参数无效')
     limit = min(max(limit, 1), 100)
-    return {'items': items[offset:offset + limit], 'next_cursor': base64.urlsafe_b64encode(str(offset + limit).encode()).decode() if offset + limit < len(items) else None}
+    return {'items': items[offset:offset + limit], 'total': len(items), 'next_cursor': base64.urlsafe_b64encode(str(offset + limit).encode()).decode() if offset + limit < len(items) else None}
 
 
 @api.get('/species/{species_id}')
