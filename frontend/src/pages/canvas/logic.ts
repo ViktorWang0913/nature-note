@@ -7,13 +7,15 @@ import {loadImages,renderScene} from '../../engine/render';
 import {HitControl} from '../../engine/notebook-controls';
 import drawingTools,{drawingData} from './drawing-tools';
 import {defaultImageEdit} from '../../engine/image-adjustment';
+import {manualTemplate} from '../../engine/templates';
+import {confirm} from '../../components/flows';
 
 // 画布和排版保存在内存中，只有明确保存时才写入笔记。
 export default {
-  data:{...drawingData,manual:false,layers:[],selectedLocked:false,backgroundColor:'#ffffff',projectId:'',title:'自然笔记',loading:true,busy:false,error:'',hasBackground:false,dirty:false,
+  data:{...drawingData,manual:false,viewportHeight:0,layers:[],selectedLocked:false,backgroundColor:'#ffffff',projectId:'',title:'自然笔记',loading:true,busy:false,error:'',hasBackground:false,dirty:false,
     projectVersion:1,tracks:[] as any[],templates:[] as any[],trackIndex:0,templateIndex:0,description:'',
     panel:'',selectedId:'',selectedType:'',canUndo:false,canRedo:false,zoom:100,taskId:'',pendingTaskId:'',
-    assets:[] as any[],assetSource:'generated',assetCursor:'',assetLoading:false,assetQuery:'',
+    assets:[] as any[],
     fonts:['简洁','书卷','等宽'],fontValues:['sans-serif','serif','monospace'],fontIndex:0,
     colors:['#253d32','#ffffff','#8a5234','#53755b','#324d76','#bd574a'],
     textForm:{text:'',fontSize:42,fontFamily:'sans-serif',fontWeight:'normal',textAlign:'left',color:'#253d32',textBackground:'transparent'},
@@ -25,7 +27,7 @@ export default {
   layout:null as Layout|null,history:null as History|null,savedSignature:'',canvas:null as any,context:null as any,
   images:new Map<string,any>(),viewport:{x:0,y:0,scale:1},canvasWidth:0,canvasHeight:0,pixelRatio:1,
   gesture:null as any,imageEditStart:null as Layout|null,renderEpoch:0,unloaded:false,resizeTimer:null as any,drawFrame:0,
-  onLoad(options:any){this.Initialize(options).then(()=>{},error=>this.Fail(error));},
+  onLoad(options:any){this.setData({viewportHeight:wx.getWindowInfo().windowHeight});this.Initialize(options).then(()=>{},error=>this.Fail(error));},
   async Initialize(options:any){
     this.images=new Map();
     const projectId=options.projectId||options.id||await chooseProject();
@@ -73,7 +75,7 @@ export default {
     }else{console.log('[分支] 等待初始化或当前操作');}
     console.log('[结束] 观察记录返回检查');
   },
-  onResize(){this.ScheduleCanvas();},
+  onResize(){this.setData({viewportHeight:wx.getWindowInfo().windowHeight});this.ScheduleCanvas();},
   ScheduleCanvas(){
     clearTimeout(this.resizeTimer);
     this.resizeTimer=setTimeout(()=>{
@@ -83,7 +85,7 @@ export default {
       console.log('[结束] 画布尺寸变更');
     },220);
   },
-  Fail(error:any){console.log('[开始] 错误展示');if(!this.unloaded){console.log('[分支] 显示失败原因');this.setData({busy:false,loading:false,assetLoading:false,error:errorMessage(error)});}else{console.log('[分支] 页面已离开');}console.log('[结束] 错误展示');},
+  Fail(error:any){console.log('[开始] 错误展示');if(!this.unloaded){console.log('[分支] 显示失败原因');this.setData({busy:false,loading:false,error:errorMessage(error)});}else{console.log('[分支] 页面已离开');}console.log('[结束] 错误展示');},
   DescribeTrack(){
     const track=this.data.tracks[this.data.trackIndex];
     console.log('[开始] 环境文字整理');
@@ -211,14 +213,15 @@ export default {
       console.log('[分支] 尺寸未变，保留缩放与图片；[结束] 画布尺寸缓存检查，提前结束');this.Draw();return;
     }
     console.log('[分支] 适配新尺寸；[结束] 画布尺寸缓存检查');
-    const previousCanvas=this.canvas;
+    const previousCanvas=this.canvas,previousFit=fitViewport(this.layout!,this.canvasWidth,this.canvasHeight,12);
+    const wasFit=Math.abs(this.viewport.scale-previousFit.scale)<1e-6&&Math.abs(this.viewport.x-previousFit.x)<1&&Math.abs(this.viewport.y-previousFit.y)<1;
     const previousWidth=this.canvasWidth,previousHeight=this.canvasHeight;
     const previousViewport={...this.viewport};
     this.canvas=result.node;this.canvasWidth=result.width;this.canvasHeight=result.height;this.pixelRatio=wx.getWindowInfo().pixelRatio;
     this.canvas.width=Math.round(result.width*this.pixelRatio);this.canvas.height=Math.round(result.height*this.pixelRatio);
     this.context=this.canvas.getContext('2d');
     console.log('[开始] 保留画布视图');
-    if(previousCanvas&&previousWidth&&previousHeight){
+    if(previousCanvas&&previousWidth&&previousHeight&&!wasFit){
       console.log('[分支] 保留实际倍率与画面中心');
       this.viewport={scale:previousViewport.scale,x:previousViewport.x+(result.width-previousWidth)/2,y:previousViewport.y+(result.height-previousHeight)/2};
       this.setData({zoom:Math.round(this.viewport.scale/fitViewport(this.layout,result.width,result.height,12).scale*100)});
@@ -342,36 +345,44 @@ export default {
     console.log('[结束] 未保存离开保护');
   },
   Signature(){return JSON.stringify(this.layout,(key,value)=>key==='url'?undefined:value);},
-  Undo(){this.TouchEnd();this.FinishStyle();this.layout=this.history!.undo();this.Select('');this.UpdateDirty();this.RefreshImages().then(()=>{},error=>this.Fail(error));},
-  Redo(){this.TouchEnd();this.FinishStyle();this.layout=this.history!.redo();this.Select('');this.UpdateDirty();this.RefreshImages().then(()=>{},error=>this.Fail(error));},
-  Materials(){this.FinishDrawing();this.setData({panel:'materials',assets:[],assetCursor:''});this.LoadAssets(false).then(()=>{},error=>this.Fail(error));},
-  AssetSource(event:any){this.setData({assetSource:event.currentTarget.dataset.source,assets:[],assetCursor:''});this.LoadAssets(false).then(()=>{},error=>this.Fail(error));},
-  AssetSearch(event:any){this.setData({assetQuery:event.detail.value});},
-  SearchAssets(){this.LoadAssets(false).then(()=>{},error=>this.Fail(error));},
-  MoreAssets(){console.log('[开始] 素材翻页');if(this.data.assetCursor&&!this.data.assetLoading){console.log('[分支] 加载下一页');this.LoadAssets(true).then(()=>{},error=>this.Fail(error));}else{console.log('[分支] 无下一页或正在加载');}console.log('[结束] 素材翻页');},
-  async LoadAssets(append:boolean){
-    this.setData({assetLoading:true,error:''});const source=this.data.assetSource;
-    const response=await request('/assets?source='+source+'&q='+encodeURIComponent(this.data.assetQuery)+'&limit=30'+(append?'&cursor='+encodeURIComponent(this.data.assetCursor):''));
-    console.log('[开始] 素材列表响应检查');
-    if(source===this.data.assetSource){console.log('[分支] 更新当前分类');this.setData({assets:append?this.data.assets.concat(response.items):response.items,assetCursor:response.next_cursor||'',assetLoading:false});}
-    else{console.log('[分支] 忽略旧分类响应');}
-    console.log('[结束] 素材列表响应检查');
+  Undo(){this.TouchEnd();this.FinishStyle();const previous=this.layout!;this.layout=this.history!.undo();this.Select('');this.UpdateDirty();if(previous.width!==this.layout!.width||previous.height!==this.layout!.height)this.Fit();this.RefreshImages().then(()=>{},error=>this.Fail(error));},
+  Redo(){this.TouchEnd();this.FinishStyle();const previous=this.layout!;this.layout=this.history!.redo();this.Select('');this.UpdateDirty();if(previous.width!==this.layout!.width||previous.height!==this.layout!.height)this.Fit();this.RefreshImages().then(()=>{},error=>this.Fail(error));},
+  Materials(){if(this.data.panel==='library-assets'){this.ClosePanel();return;}this.FinishDrawing();this.setData({panel:'library-assets'});},
+  Templates(){const panel=this.data.manual?'library-templates':'background';if(this.data.panel===panel){this.ClosePanel();return;}this.FinishDrawing();if(this.data.manual)this.setData({panel});else this.Background();},
+  async UseLibraryTemplate(event:any){
+    if(this.data.busy||!event.detail)return;
+    try{
+      if(this.layout.elements.length&&!await confirm('使用此模板？','当前排版将被替换，可通过撤销恢复。作品名称保留，保存后才更新云端。'))return;
+      this.setData({busy:true,error:''});const next=manualTemplate(event.detail.layout);
+      const images=await loadImages(this.canvas,next,this.images);
+      if(this.unloaded)return;
+      this.images=images;this.Commit(next);this.Select('');this.setData({panel:''});await this.SetupCanvas();this.Fit();
+    }catch(error){this.setData({error:errorMessage(error)});throw error;}
+    finally{this.setData({busy:false});}
   },
-  AddAsset(event:any){this.InsertAsset(event.currentTarget.dataset.id).then(()=>{},error=>this.Fail(error));},
+  RememberLibraryAsset(event:any){const asset=event.detail;if(!this.data.assets.some(item=>item.id===asset.id))this.setData({assets:[...this.data.assets,asset]});},
+  async UseLibraryAsset(event:any){const asset=event.detail;if(!this.data.manual&&asset.source!=='generated'&&asset.source!=='public')throw new Error('观察笔记请选择生成素材或公共素材');this.RememberLibraryAsset(event);await this.InsertAsset(asset.id);},
   async InsertAsset(id:string){
     console.log('[开始] 素材插入互斥');
     if(this.data.busy){console.log('[分支] 正在插入；[结束] 素材插入互斥，提前结束');return;}
     console.log('[分支] 开始插入；[结束] 素材插入互斥');this.setData({busy:true});
-    const asset=this.data.assets.find(item=>item.id===id);
-    const center=screenToCanvas({x:this.canvasWidth/2,y:this.canvasHeight/2},this.viewport);
-    center.x=Math.max(0,Math.min(1024,center.x));center.y=Math.max(0,Math.min(1536,center.y));
-    const next=attachAsset(this.layout!,asset,center);
-    const loaded=await loadImages(this.canvas,next,this.images);this.images=loaded;
-    this.Commit(next);this.setData({panel:this.data.manual&&window.innerWidth>=900?'materials':'',busy:false});this.Select(next.elements[next.elements.length-1].id);
+    try{
+      const asset=this.data.assets.find(item=>item.id===id);
+      if(!asset)throw new Error('素材已不可用，请刷新图库后重试');
+      const center=screenToCanvas({x:this.canvasWidth/2,y:this.canvasHeight/2},this.viewport);
+      center.x=Math.max(0,Math.min(this.layout!.width,center.x));center.y=Math.max(0,Math.min(this.layout!.height,center.y));
+      const next=attachAsset(this.layout!,asset,center),loaded=await loadImages(this.canvas,next,this.images);
+      if(this.unloaded)return;
+      this.images=loaded;this.Commit(next);this.setData({panel:''});this.Select(next.elements[next.elements.length-1].id);
+    }finally{this.setData({busy:false});}
   },
   Text(){
+    if(this.data.panel==='text'){this.ClosePanel();return;}
     this.FinishDrawing();
     const element=this.layout!.elements.find(item=>item.id===this.data.selectedId&&item.type==='text');
+    const draftKey=JSON.stringify(element||null);
+    if(this.textDraftKey===draftKey){this.setData({panel:'text'});return;}
+    this.textDraftKey=draftKey;
     this.setData({panel:'text',fontIndex:Math.max(0,this.data.fontValues.indexOf(element?.fontFamily||'sans-serif')),
       textForm:{text:element?.text||'',fontSize:element?.fontSize||42,fontFamily:element?.fontFamily||'sans-serif',fontWeight:element?.fontWeight||'normal',
         textAlign:element?.textAlign||'left',color:element?.color||'#253d32',textBackground:element?.textBackground||'transparent'}});
@@ -402,13 +413,12 @@ export default {
     console.log('[结束] 文字高度计算');element.height=Math.ceil(lineCount*element.fontSize!*1.45+element.fontSize!*.2);
     console.log('[开始] 文字长度边界检查');
     if(element.height>10000){console.log('[分支] 文本过长；[结束] 文字长度边界检查，提前结束');this.setData({error:'文字过长，请缩短内容或减小字号'});return;}
-    console.log('[分支] 文字完整可排版；[结束] 文字长度边界检查');this.Commit(next);this.Select(element.id);this.ClosePanel();
+    console.log('[分支] 文字完整可排版；[结束] 文字长度边界检查');this.textDraftKey=null;this.Commit(next);this.Select(element.id);this.ClosePanel();
   },
   Remove(){
     console.log('[开始] 删除画布元素许可');
     if(this.data.busy||this.layout?.elements.find(item=>item.id===this.data.selectedId)?.locked){console.log('[分支] 元素锁定或正在处理；[结束] 删除画布元素许可，提前结束');return;}
     console.log('[分支] 删除当前元素；[结束] 删除画布元素许可');const next=clone(this.layout!);next.elements=next.elements.filter(item=>item.id!==this.data.selectedId||item.id==='background');this.Commit(next);this.Select('');},
-  Layers(){wx.showActionSheet({itemList:['上移一层','下移一层','移至顶层','移至底层'],success:answer=>this.MoveLayer(answer.tapIndex)});},
   MoveLayer(action:number){
     const next=clone(this.layout!),objects=next.elements.filter(item=>item.id!=='background').sort((first,second)=>first.z-second.z);
     const index=objects.findIndex(item=>item.id===this.data.selectedId),element=objects.splice(index,1)[0];
@@ -441,9 +451,9 @@ export default {
     console.log('[分支] 普通画布返回；[结束] 退出素材调整检查');
     console.log('[开始] 返回保存检查');if(this.data.dirty){console.log('[分支] 显示三项选择');this.setData({showLeave:true});}else{console.log('[分支] 直接返回');this.GoBack();}console.log('[结束] 返回保存检查');
   },
-  Stay(){this.setData({showLeave:false});},
+  Stay(){this.pendingNavigation=null;this.setData({showLeave:false});},
   Discard(){wx.disableAlertBeforeUnload();this.GoBack();},
-  SaveLeave(){this.SaveDesign().then(()=>{this.GoBack();},error=>this.Fail(error));},
+  SaveLeave(){this.SaveDesign().then(()=>{if(!this.data.dirty)this.GoBack();},error=>this.Fail(error));},
   ...drawingTools,
   GoBack(){wx.disableAlertBeforeUnload();console.log('[开始] 指定返回目标');if(this.pendingNavigation){console.log('[分支] 继续先前导航');const navigate=this.pendingNavigation;this.pendingNavigation=null;navigate();console.log('[结束] 指定返回目标');return;}console.log('[分支] 返回前页；[结束] 指定返回目标');console.log('[开始] 返回目标');if(getCurrentPages().length>1){console.log('[分支] 上一页');wx.navigateBack();}else{console.log('[分支] 首页');wx.switchTab({url:'/pages/home/index'});}console.log('[结束] 返回目标');}
 };

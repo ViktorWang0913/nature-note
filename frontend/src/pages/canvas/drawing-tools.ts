@@ -32,6 +32,7 @@ export default {
     const opening=this.data.toolPanel!==tool;
     this.setData({toolPanel:opening?tool:'',brushPopup:'',saveMenu:false,drawingMode:tool==='brush'});this.Select('');
   },
+  CloseDrawingTools(){this.setData({toolPanel:'',brushPopup:''});},
   FinishDrawing(){this.TouchEnd();this.setData({drawingMode:false,toolPanel:'',brushPopup:'',saveMenu:false});},
   ChooseBrush(event:any){
     const brushKind=event.currentTarget.dataset.kind,settings=this.data.brushPresets[brushKind];
@@ -219,7 +220,7 @@ export default {
     console.log('[结束] 尺寸裁切确认');next.width=width;next.height=height;next.background=form.background;this.Commit(next);this.ClosePanel();this.Fit();
   },
   SaveAndExport(){this.SaveDesign().then(()=>this.ExportImage()).then(undefined,error=>this.Fail(error));},
-  Layers(){this.FinishDrawing();this.setData({panel:'layers'});this.ScheduleCanvas();},
+  Layers(){if(this.data.panel==='layers'){this.ClosePanel();return;}this.FinishDrawing();this.setData({panel:'layers'});this.ScheduleCanvas();},
   SelectLayer(event:any){this.Select(event.currentTarget.dataset.id);},
   LayerOrder(event:any){console.log('[开始] 图层排序许可');if(!this.data.selectedId||this.data.selectedLocked){console.log('[分支] 请先选择并解锁；[结束] 图层排序许可，提前结束');return;}console.log('[分支] 排序；[结束] 图层排序许可');this.MoveLayer(Number(event.currentTarget.dataset.action));},
   ElementAction(event:any){

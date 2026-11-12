@@ -13,7 +13,6 @@ export default {
  async favorite(){try{const a:any=this.data.asset;await request('/assets/'+a.id+'/favorite','PUT',{favorite:!a.favorite});this.setData({asset:{...a,favorite:!a.favorite}});}catch(e){fail(e);}},
  generate(){localStore.Set('aiAsset',this.data.asset);localStore.Set('galleryTab','ai');wx.switchTab({url:'/pages/gallery/index'});},
  async add(){try{const id=await importAsset(this.data.id);go('/pages/canvas/index?projectId='+id);}catch(e){fail(e);}},
- publish(){go('/pages/publish/index?assetId='+this.data.id);},
  AssetMenu(){const actions=[{title:'手动确认物种',run:()=>this.ManualConfirm(),visible:(this.data.asset as any)?.source==='photo'},{title:'删除素材',run:()=>this.remove(),visible:true}].filter(action=>action.visible);wx.showActionSheet({itemList:actions.map(action=>action.title),success:choice=>{console.log('[开始] 素材菜单');Promise.resolve(actions[choice.tapIndex].run()).then(()=>console.log('[结束] 素材菜单'),fail);}});},
  async recognize(){
   console.log('[开始] 识别输入检查');

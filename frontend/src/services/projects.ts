@@ -1,9 +1,28 @@
 import * as localStore from './local-store';
 import { request } from './api';
-import {localNode,updateLocalNode,syncTrack} from '../engine/tracker';
+import {localNode,updateLocalNode,syncTrack,getActiveTrack} from '../engine/tracker';
+import {flushQueue} from './sync';
 import { Project } from '../types/models';
 export function currentProjectId():string { return localStore.Get('nature:currentProject')||''; }
 export function setCurrentProject(id:string):void { localStore.Set('nature:currentProject',id); }
+export async function deleteProject(id:string):Promise<void>{
+  const accountId=localStore.AccountId(),active=getActiveTrack();
+  const tracks=localStore.Info().keys.filter(key=>key.startsWith('nature:track-local:')).map(key=>localStore.Get(key)).filter(track=>track?.id!==active?.id);
+  if(active)tracks.push(active);
+  if(tracks.some(track=>track?.project_id===id&&track.status!=='ended'))throw new Error('请先结束该项目的轨迹记录，再删除项目');
+  if(active?.project_id===id){await syncTrack();await flushQueue();}
+  const queuedPoints=localStore.Get('nature:trackQueue')||[];
+  const pendingNodes=localStore.Info().keys.some(key=>{
+    if(key.startsWith('nature:node-pending:'))return localStore.Get(key)?.project_id===id;
+    if(key.startsWith('nature:node-uploads:'))return localStore.Get(key)?.length&&localStore.Get('nature:node:'+key.slice('nature:node-uploads:'.length))?.project_id===id;
+    return false;
+  });
+  if(pendingNodes||tracks.some(track=>track?.project_id===id&&(!track.remote_id||track.uploaded<track.points.length||queuedPoints.some(batch=>batch.trackId===track.remote_id)||track.nodes.some(node=>!node.remote_id||node.dirty||(localStore.Get('nature:node-uploads:'+node.id)||[]).length))))throw new Error('此项目还有未同步记录，请先联网同步，再删除项目');
+  localStore.EnsureAccount(accountId);
+  await request('/projects/'+id,'DELETE');
+  localStore.EnsureAccount(accountId);
+  if(currentProjectId()===id)setCurrentProject('');
+}
 export async function getCurrentProject():Promise<Project> { const id=currentProjectId()||await chooseProject();return request<Project>('/projects/'+id); }
 let pendingSelection:Promise<string>|null=null;
 export async function chooseProject():Promise<string> {

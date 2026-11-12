@@ -1,10 +1,18 @@
 import {request} from '../../services/api';
-import {setCurrentProject,currentProjectId} from '../../services/projects';
+import {setCurrentProject,currentProjectId,deleteProject} from '../../services/projects';
 import {fail,go,confirm} from '../../components/flows';
 export default {
- data:{items:[],loading:true,error:'',title:'',showCreate:false,current:'',saving:false},
+ data:{items:[],next:'',loading:false,error:'',title:'',showCreate:false,current:'',saving:false,removingId:''},
  onShow(){this.setData({current:currentProjectId()});this.load();},
- async load(){this.setData({loading:true,error:''});try{const r:any=await request('/projects');this.setData({items:r.items||[]});}catch(e){this.setData({error:(e as Error).message});}finally{this.setData({loading:false});}},
+ async load(){return this.Read(false);},
+ async More(){if(this.data.next&&!this.data.loading)return this.Read(true);},
+ async Read(append:boolean){
+  if(this.data.loading)return;
+  this.setData({loading:true,error:''});
+  try{const result=await request('/projects'+(append?'?cursor='+encodeURIComponent(this.data.next):''));if(!this.unloaded)this.setData({items:append?[...this.data.items,...result.items]:result.items,next:result.next_cursor||''});}
+  catch(error){this.setData({error:(error as Error).message});}
+  finally{this.setData({loading:false});}
+ },
  Open(event:any){
   const projectId=event.currentTarget.dataset.id,project=this.data.items.find(item=>item.id===projectId);
   console.log('[开始] 笔记打开方式');
@@ -12,6 +20,7 @@ export default {
   else{console.log('[分支] 观察笔记');setCurrentProject(projectId);go('/pages/canvas/index?projectId='+projectId);}
   console.log('[结束] 笔记打开方式');
  },
+ NewDesign(){go('/pages/design/index');},
  create(){this.setData({showCreate:true,title:''});},close(){this.setData({showCreate:false});},noop(){},input(e:any){this.setData({title:e.detail.value});},
  async save(){
   console.log('[开始] 创建笔记重复提交检查');
@@ -23,15 +32,12 @@ export default {
   },fail).finally(()=>this.setData({saving:false}));
  },
  async remove(e:any){
-  console.log('[开始] 笔记删除确认');
-  if(!await confirm('删除笔记项目','删除项目不会删除素材库中的原始图片。')){console.log('[分支] 取消；[结束] 笔记删除确认；提前返回');return;}
-  console.log('[分支] 删除当前选择的笔记；[结束] 笔记删除确认');
-  const projectId=e.currentTarget.dataset.id;
-  await request('/projects/'+projectId,'DELETE').then(async()=>{
-   console.log('[开始] 当前笔记关联清理');
-   if(currentProjectId()===projectId){console.log('[分支] 清除已删除的当前笔记');setCurrentProject('');this.setData({current:''});}
-   else{console.log('[分支] 保留其他当前笔记');}
-   console.log('[结束] 当前笔记关联清理');await this.load();
-  },fail);
+  if(this.data.removingId)return;
+  const id=e.currentTarget.dataset.id;this.setData({removingId:id});
+  try{
+   if(!await confirm('删除笔记项目','项目将从列表移除，原始轨迹和观察点会解除项目关联，素材库中的原始图片保留。'))return;
+   await deleteProject(id);this.setData({current:currentProjectId()});await this.load();
+  }catch(error){fail(error);}
+  finally{this.setData({removingId:''});}
  }
 };

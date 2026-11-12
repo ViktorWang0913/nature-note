@@ -1,13 +1,27 @@
 import { defineComponent, h, ref, onMounted, onBeforeUnmount, watch, nextTick } from 'vue';
-import { Navigate, WindowInfo, ShowError } from './platform';
+import { Navigate, WindowInfo, ShowError, currentPage } from './platform';
 export { default as PreviewImage } from './PreviewImage.vue';
 
-export const NtHeader=defineComponent({props:{title:String,back:Boolean,brand:{type:Boolean,default:true},localBack:Boolean},emits:['back'],setup(props,{emit}){return()=>h('header',{class:'web-header'},[
-  props.back?h('button',{class:'web-back','aria-label':'返回',onClick:()=>{console.log('[开始] 页头返回');if(props.localBack){console.log('[分支] 页面处理');emit('back');}else{console.log('[分支] 浏览器返回');wx.navigateBack();}console.log('[结束] 页头返回');}},'‹'):null,
-  h('span',{class:props.brand?'web-brand':''},props.brand?'自然记':props.title)]);}});
-export const NtBottom=defineComponent({props:{selected:{type:Number,default:0}},setup(props){const pages=['home','gallery','atlas','community'],labels=['首页','图库','图鉴','社区'],icons=['home','gallery','leaf','people'];return()=>h('nav',{class:'web-tabs'},pages.map((page,index)=>h('button',{class:{selected:props.selected===index},onClick:()=>Navigate('/pages/'+page+'/index')},[h('img',{src:'/assets/icons/'+icons[index]+(props.selected===index?'':'-muted')+'.svg',alt:''}),h('span',labels[index])])));}});
+export const NtHeader=defineComponent({
+  props:{title:String,description:String,page:Boolean,back:Boolean,brand:{type:Boolean,default:true},localBack:Boolean},
+  emits:['back'],
+  setup(props,{emit,slots}){
+    function Back(){if(props.localBack)emit('back');else wx.navigateBack();}
+    return()=>h('header',{class:['web-header',props.page?'web-page-header':'web-tool-header']},[
+      h('div',{class:'web-header-inner'},[
+        props.back?h('button',{class:'web-back','aria-label':'返回',onClick:Back},[h('img',{src:'/assets/icons/back.svg',alt:'','aria-hidden':'true'})]):null,
+        h('div',{class:'web-heading-copy'},[
+          h(props.page?'h1':'span',{class:'web-title'},props.title||(props.brand?'自然记':'')),
+          props.description?h('p',{class:'web-description'},props.description):null
+        ]),
+        slots.default?h('div',{class:'web-header-art','aria-hidden':'true'},slots.default()):null
+      ])
+    ]);
+  }
+});
+export const NtBottom=defineComponent({props:{selected:{type:Number,default:0}},setup(props){const pages=['home','design','atlas','profile'],labels=['首页','笔记','图鉴','我的'],icons=['home','gallery','leaf','profile'];return()=>h('nav',{class:'web-tabs','aria-label':'主导航'},pages.map((page,index)=>h('button',{class:{selected:props.selected===index},'aria-current':props.selected===index?'page':undefined,onClick:()=>{if(props.selected===index)currentPage?.onTabItemTap?.({index});Navigate('/pages/'+page+'/index');}},[h('img',{src:'/assets/icons/'+icons[index]+(props.selected===index?'':'-muted')+'.svg',alt:''}),h('span',labels[index])])));}});
 export const NtState=defineComponent({props:{loading:Boolean,error:String,empty:Boolean,message:{type:String,default:'暂无内容'}},emits:['retry'],setup(props,{emit}){return()=>props.loading?h('div',{class:'empty'},'正在加载…'):props.error?h('div',{class:'empty'},[h('p',props.error),h('button',{onClick:()=>emit('retry')},'重新加载')]):props.empty?h('div',{class:'empty'},props.message):null;}});
-export const WebPicker=defineComponent({inheritAttrs:false,props:{range:{type:Array,default:()=>[]},rangeKey:String,value:{default:0},disabled:Boolean},emits:['change'],setup(props,{attrs,slots,emit}){return()=>h('div',{...attrs,class:['web-picker',attrs.class]},[slots.default?.(),h('select',{value:props.value,disabled:props.disabled,'aria-label':'选择',onChange:(event:any)=>emit('change',{detail:{value:Number(event.target.value)},dataset:attrs})},props.range.map((item:any,index)=>h('option',{value:index},props.rangeKey?item[props.rangeKey]:item)))]);}});
+export { default as WebPicker } from './WebPicker.vue';
 export const WebSlider=defineComponent({inheritAttrs:false,props:{min:{default:0},max:{default:100},step:{default:1},value:{default:0},disabled:Boolean},emits:['change'],setup(props,{attrs,emit}){return()=>h('input',{...attrs,...props,type:'range',onChange:(event:any)=>emit('change',{currentTarget:event.currentTarget,detail:{value:Number(event.target.value)}})});}});
 export const WebSwitch=defineComponent({inheritAttrs:false,props:{checked:Boolean},emits:['change'],setup(props,{attrs,emit}){return()=>h('input',{...attrs,type:'checkbox',role:'switch',checked:props.checked,onChange:(event:any)=>emit('change',{detail:{value:event.target.checked},currentTarget:event.currentTarget})});}});
 export const WebProgress=defineComponent({props:{percent:{default:0}},setup(props){return()=>h('progress',{max:100,value:props.percent});}});

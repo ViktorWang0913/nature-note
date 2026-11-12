@@ -4,7 +4,7 @@ vi.mock('../../services/projects',()=>({chooseProject:vi.fn(),setCurrentProject:
 vi.mock('../../services/local-store',()=>({}));
 vi.mock('../../engine/render',()=>({loadImages:vi.fn(),renderScene:vi.fn()}));
 import definition from './logic';
-import {History} from '../../engine/scene';
+import {History,fitViewport} from '../../engine/scene';
 
 test('multiple redraw requests share one animation frame and keep latest state',()=>{
   let DrawFrame:()=>void=()=>{};
@@ -75,5 +75,16 @@ test('image adjustments preview in scene, cancel restores source and apply is un
   editor.EditMaterial();editor.AdjustMaterial({currentTarget:{dataset:{field:'brightness'}},detail:{value:130}});
   editor.ApplyMaterial();expect(editor.layout.elements[1].imageEdit.brightness).toBe(130);
   expect(editor.history.undo().elements[1].imageEdit).toBeUndefined();
+  vi.unstubAllGlobals();
+});
+
+test.each([100,200])('resize keeps fit mode or a deliberate %s percent zoom',async zoom=>{
+  const editor:any=BuildEditor(),canvas={width:0,height:0,getContext:()=>({})};
+  editor.data.zoom=zoom;editor.canvas=canvas;editor.canvasWidth=600;editor.canvasHeight=700;editor.viewport=zoom===100?fitViewport(editor.layout,600,700,12):{x:10,y:20,scale:.5};editor.images=new Map([['existing',{}]]);
+  editor.createSelectorQuery=()=>{const query={select:()=>query,fields:()=>query,exec:callback=>callback([{node:canvas,width:250,height:280}])};return query;};
+  vi.stubGlobal('wx',{nextTick:callback=>callback(),getWindowInfo:()=>({pixelRatio:1})});
+  await editor.SetupCanvas();
+  if(zoom===100){expect(editor.data.zoom).toBe(100);expect(editor.viewport.scale).toBeLessThan(.2);}
+  else expect(editor.viewport.scale).toBe(.5);
   vi.unstubAllGlobals();
 });

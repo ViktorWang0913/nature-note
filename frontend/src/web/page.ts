@@ -1,13 +1,14 @@
-import { reactive, toRefs, onMounted, onBeforeUnmount, nextTick } from 'vue';
+import { reactive, toRefs, onMounted, onBeforeUnmount, nextTick, watch } from 'vue';
 import { SelectorQuery, SetCurrentPage, ShowError, WindowInfo, ui } from './platform';
 
 export function Safe(Read:()=>any){try{return Read();}catch(error){console.log('[开始] 页面字段读取');if(error instanceof TypeError){console.log('[分支] 数据尚未加载；[结束] 页面字段读取');return undefined;}console.log('[分支] 非字段错误；[结束] 页面字段读取');throw error;}}
 export function Style(value:any){return String(value??'').replace(/(-?\d+(?:\.\d+)?)rpx/g,(_match,number)=>Number(number)/2+'px');}
-export function UsePage(definition:any){
+export interface PageOptions {embedded?:boolean;query?:Record<string,any>;active?:()=>boolean;methods?:Record<string,any>}
+export function UsePage(definition:any,options:PageOptions={}){
   const behaviors=definition.behaviors||[],baseData=Object.assign({},...behaviors.map((behavior:any)=>behavior.data||{}),definition.data);
   const data=reactive(structuredClone(baseData));
   const pointerTouches=new Map<number,{x:number;y:number;identifier:number}>();
-  const context:any={...definition,...Object.assign({},...behaviors.map((behavior:any)=>behavior.methods||{})),data,unloaded:false,
+  const context:any={...definition,...Object.assign({},...behaviors.map((behavior:any)=>behavior.methods||{})),data,unloaded:false,embedded:!!options.embedded,
     setData(patch:any,callback?:()=>void){
       console.log('[开始] 页面状态更新');
       const entries=Object.entries(patch);
@@ -15,7 +16,7 @@ export function UsePage(definition:any){
       else{console.log('[分支] 更新嵌套字段');console.log('[开始] 嵌套字段循环');entries.forEach(([path,value],index)=>{console.log(`[开始] 字段 ${index+1}/${entries.length}`);const parts=path.replace(/\[(\d+)\]/g,'.$1').split('.'),last=parts.pop()!;const parent=parts.reduce((parent:any,key)=>parent[key],data);parent[last]=value;console.log(`[结束] 字段 ${index+1}/${entries.length}`);});console.log('[结束] 嵌套字段循环');}
       console.log('[结束] 页面状态更新');nextTick(callback);
     },
-    createSelectorQuery:SelectorQuery,getTabBar:()=>({setData(patch:any){ui.tabHidden=patch.hidden??ui.tabHidden;}}),triggerEvent(){}};
+    createSelectorQuery:SelectorQuery,getTabBar:()=>({setData(patch:any){if(!options.embedded)ui.tabHidden=patch.hidden??ui.tabHidden;}}),triggerEvent(){},...options.methods};
   console.log('[开始] 页面方法绑定');Object.keys(context).forEach((key,index,keys)=>{console.log(`[开始] 方法 ${index+1}/${keys.length}`);console.log('[开始] 方法类型');if(typeof context[key]==='function'){console.log('[分支] 绑定页面');context[key]=context[key].bind(context);}else{console.log('[分支] 页面状态');}console.log('[结束] 方法类型');console.log(`[结束] 方法 ${index+1}/${keys.length}`);});console.log('[结束] 页面方法绑定');
   function Dispatch(name:string,event:any){
     const target=event?.currentTarget||event?.target,box=target?.getBoundingClientRect?.()||{left:0,top:0};
@@ -39,7 +40,9 @@ export function UsePage(definition:any){
     const result=context[name]?.(normalized);result?.then?.(undefined,ShowError);
   }
   function Resize(){context.onResize?.({size:WindowInfo()});}
-  onMounted(async()=>{SetCurrentPage(context);ui.tabHidden=false;const query=location.hash.split('?')[1]||'';await context.onLoad?.(Object.fromEntries(new URLSearchParams(query)));await nextTick();context.onShow?.();context.onReady?.();window.addEventListener('resize',Resize);visualViewport?.addEventListener('resize',Resize);});
+  let ready=false;
+  if(options.active)watch(options.active,active=>{if(ready)(active?context.onShow:context.onHide)?.();});
+  onMounted(async()=>{if(!options.embedded){SetCurrentPage(context);ui.tabHidden=false;}const query=options.query??Object.fromEntries(new URLSearchParams(location.hash.split('?')[1]||''));await context.onLoad?.(query);await nextTick();if(context.unloaded)return;ready=true;if(options.active?.()!==false)context.onShow?.();context.onReady?.();window.addEventListener('resize',Resize);visualViewport?.addEventListener('resize',Resize);});
   onBeforeUnmount(()=>{context.onHide?.();context.onUnload?.();context.unloaded=true;window.removeEventListener('resize',Resize);visualViewport?.removeEventListener('resize',Resize);});
   return {...toRefs(data),pageData:data,Dispatch,Safe,Style};
 }

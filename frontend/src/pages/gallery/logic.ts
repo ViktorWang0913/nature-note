@@ -12,9 +12,20 @@ export default {
  _blankSession:false,_libraryEpoch:0,
  _lastGenerationInput:null as any,_generationEpoch:0,_accountId:'',
  data:{removingAssetId:'',deletingId:'',historyNext:'',resultHasMessage:false,scrollTop:0,keyboardHeight:0,showHistory:false,showFilters:false,showPhotos:false,referencePhotos:[] as any[],imageQuota:100,sessions:[],sessionTitle:'图片创作',atlasTarget:null,selectedIds:[],unfiled:false,tab:'templates',loading:false,error:'',q:'',category:'all',source:'all',categories:[{id:'all',name:'全部'},{id:'unclassified',name:'未分类'},{id:'mammals',name:'兽类'},{id:'birds',name:'鸟类'},{id:'insects',name:'昆虫'},{id:'plants',name:'植物'},{id:'environment',name:'环境'},{id:'buildings',name:'建筑'}],sources:[{id:'all',name:'全部'},{id:'public',name:'公共素材'},{id:'photo',name:'我的照片'},{id:'generated',name:'生成素材'}],items:[],pending:[],syncing:false,next:'',projectTitle:'选择笔记',prompt:'',styles:[{id:'cartoon',name:'卡通插画'},{id:'watercolor',name:'水彩'},{id:'sketch',name:'素描'}],style:'cartoon',styleName:'卡通插画',inputAsset:null,result:null,task:null,busy:false,messages:[],sessionId:''},
- onShow(){this.MeasureWindow();this.CheckAccount();selectTab(1);const target=localStore.Get('atlasTarget');this.setData({atlasTarget:target||null,source:target?'photo':this.data.source});const chatPrompt=localStore.Get('aiPrompt');console.log('[开始] 问答生图输入检查');if(chatPrompt){console.log('[分支] 带入问答文字');this.setData({prompt:chatPrompt,tab:'ai'});localStore.Remove('aiPrompt');}else{console.log('[分支] 普通生图入口');}console.log('[结束] 问答生图输入检查');this.setData({pending:pendingPhotos()});const tab=localStore.Get('galleryTab');if(tab){this.setData({tab});localStore.Remove('galleryTab');}const asset=localStore.Get('aiAsset');if(asset){this.setData({inputAsset:decorateAsset(asset),tab:'ai'});localStore.Remove('aiAsset');}this.UpdateWorkspace();this.Load();},
+ onShow(){
+  this.MeasureWindow();this.CheckAccount();
+  if(!this.embedded){
+   selectTab(1);const target=localStore.Get('atlasTarget');this.setData({atlasTarget:target||null,source:target?'photo':this.data.source});
+   const prompt=localStore.Get('aiPrompt'),tab=localStore.Get('galleryTab'),asset=localStore.Get('aiAsset');
+   if(prompt){this.setData({prompt,tab:'ai'});localStore.Remove('aiPrompt');}
+   if(tab){this.setData({tab});localStore.Remove('galleryTab');}
+   if(asset){this.setData({inputAsset:decorateAsset(asset),tab:'ai'});localStore.Remove('aiAsset');}
+  }
+  if(this.creationOnly)this.setData({tab:'ai'});
+  this.setData({pending:pendingPhotos()});this.UpdateWorkspace();this.Load();
+ },
  onReady(){this.UpdateWorkspace();},
- onHide(){this.SaveCreationDraft();this.setData({keyboardHeight:0});const tabBar=this.getTabBar?.();tabBar?.setData({hidden:false});},
+ onHide(){if(this.data.tab==='ai')this.SaveCreationDraft();this.setData({keyboardHeight:0});const tabBar=this.getTabBar?.();tabBar?.setData({hidden:false});},
  SaveCreationDraft(){console.log('[开始] 创作草稿账号检查');if(this._accountId!==localStore.AccountId()){console.log('[分支] 账号已切换，不写入旧草稿');console.log('[结束] 创作草稿账号检查；提前结束');return;}console.log('[分支] 保存当前草稿');localStore.Set('nature:image-draft:'+this.data.sessionId,{prompt:this.data.prompt,inputAsset:this.data.inputAsset,style:this.data.style,styleName:this.data.styleName});console.log('[结束] 创作草稿账号检查');},
  RestoreCreationDraft(){const draft=localStore.Get('nature:image-draft:'+this.data.sessionId);console.log('[开始] 创作草稿恢复');if(draft&&!this.data.prompt&&!this.data.inputAsset){console.log('[分支] 恢复未发送内容');this.setData(draft);}else{console.log('[分支] 保留当前输入或外部带入内容');}console.log('[结束] 创作草稿恢复');},
  CheckAccount(){const accountId=localStore.AccountId();console.log('[开始] 创作页面账号检查');if(this._accountId&&this._accountId!==accountId){console.log('[分支] 清除旧账号页面状态');++this._generationEpoch;this._lastGenerationInput=null;this.setData({sessionId:'',sessions:[],messages:[],inputAsset:null,prompt:'',result:null,task:null,busy:false,showHistory:false,showPhotos:false});}else{console.log('[分支] 当前账号页面');}this._accountId=accountId;console.log('[结束] 创作页面账号检查');},
@@ -37,13 +48,13 @@ export default {
  ChoosePhoto(event:any){const asset=this.data.referencePhotos.find((item:any)=>item.id===event.currentTarget.dataset.id);this.setData({inputAsset:asset,showPhotos:false});},
  SaveImage(event:any){this.SelectResult(event);return this.Save().then(undefined,fail);},
  ModifyImage(event:any){this.SelectResult(event);return this.ContinueImage().then(undefined,fail);},
- ResultMenu(event:any){this.SelectResult(event);wx.showActionSheet({itemList:['查看大图','重新生成','保存并加入观察点'],success:choice=>{const actions=[()=>preview((this.data.result as any).image_url),()=>this.Regenerate(),()=>this.AddResult()];console.log('[开始] 图片结果菜单');Promise.resolve(actions[choice.tapIndex]()).then(()=>console.log('[结束] 图片结果菜单'),fail);}});},
+ ResultMenu(event:any){this.SelectResult(event);wx.showActionSheet({itemList:['查看大图','重新生成',this.selectable?'保存并加入画布':'保存并加入观察点'],success:choice=>{const actions=[()=>preview((this.data.result as any).image_url),()=>this.Regenerate(),()=>this.AddResult()];console.log('[开始] 图片结果菜单');Promise.resolve(actions[choice.tapIndex]()).then(()=>console.log('[结束] 图片结果菜单'),fail);}});},
  QuotaDetails(){wx.showModal({title:'图片额度',content:'生图与笔记生成剩余 '+this.data.imageQuota+'%。正在处理的请求可能暂时占用部分额度，完成后按实际费用更新。',showCancel:false});},
  async Load(){
   const loadEpoch=++this._libraryEpoch,tab=this.data.tab;
   this.setData({loading:true,error:''});
   console.log('[开始] 素材页标题并行读取');
-  if(currentProjectId()){
+  if(currentProjectId()&&!this.selectable){
    console.log('[分支] 标题独立读取，不阻塞素材');
    getCurrentProject().then(project=>{
     console.log('[开始] 标题响应归属');
@@ -165,7 +176,7 @@ export default {
  Style(e:any){const s=this.data.styles[Number(e.detail.value)];this.setData({style:s.id,styleName:s.name});},
  async Send(){const epoch=this._generationEpoch+1;return this.StartGeneration(false).then(undefined,error=>this.GenerationFailed(error,epoch));},
  async Regenerate(){const epoch=this._generationEpoch+1;return this.StartGeneration(true).then(undefined,error=>this.GenerationFailed(error,epoch));},
- GenerationFailed(error:any,epoch:number){console.log('[开始] 创作错误归属');if(epoch===this._generationEpoch){console.log('[分支] 当前请求失败');this.setData({busy:false,error:error.message});fail(error);}else{console.log('[分支] 旧请求不影响当前输入');}console.log('[结束] 创作错误归属');},
+ GenerationFailed(error:any,epoch:number){if(this.unloaded)return;console.log('[开始] 创作错误归属');if(epoch===this._generationEpoch){console.log('[分支] 当前请求失败');this.setData({busy:false,error:error.message});fail(error);}else{console.log('[分支] 旧请求不影响当前输入');}console.log('[结束] 创作错误归属');},
  async StartGeneration(reuseLast:boolean){
   console.log('[开始] 创作提交检查');
   if(this.data.busy){console.log('[分支] 当前请求处理中');console.log('[结束] 创作提交检查；提前结束');return;}
@@ -194,12 +205,14 @@ export default {
   console.log('[开始] 创作提交有效性');
   if(epoch!==this._generationEpoch){console.log('[分支] 等待已停止');await request('/tasks/'+task.id+'/cancel','POST');console.log('[结束] 创作提交有效性；提前结束');return;}
   console.log('[分支] 当前请求');console.log('[结束] 创作提交有效性');
+  if(this.unloaded)return;
   this.setData({task,messages:[...this.data.messages,{role:'user',text:input.prompt,image_url:reuseLast?'':inputAsset?.url||''}],prompt:'',inputAsset:null,scrollTop:this.data.scrollTop+100000});
   localStore.Remove('nature:image-draft:'+draftSessionId);
   localStore.Remove('nature:image-draft:'+input.session_id);await this.CompleteGeneration(task.id,input.session_id,epoch);
  },
  async CompleteGeneration(taskId:string,sessionId:string,epoch:number){
   const completed=await waitTask(taskId,(progress:any)=>{
+    if(this.unloaded)throw new Error('页面已关闭，任务仍可从历史恢复');
     console.log('[开始] 生图查询进度归属');
     if(epoch===this._generationEpoch){console.log('[分支] 显示原任务及恢复状态');this.setData({task:progress,error:progress.error?.message||''});}
     else{console.log('[分支] 忽略旧会话进度');}

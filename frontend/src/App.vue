@@ -6,9 +6,10 @@ import { getActiveTrack, pauseTrack, syncTrack } from './engine/tracker';
 import { flushQueue } from './services/sync';
 const pageModules=import.meta.glob('./pages/*/Page.vue',{eager:true,import:'default'});
 const route=ref(location.hash.slice(1)||'/pages/home/index');
-const tabIndex=computed(()=>['home','gallery','atlas','community'].indexOf(route.value.split('?')[0].split('/')[2]));
+const routeName=computed(()=>{const name=route.value.split('?')[0].split('/')[2]||'home';return ['community','post','publish','user','notifications'].includes(name)?'profile':name;});
+const tabIndex=computed(()=>['home','design','atlas','profile'].indexOf(routeName.value==='canvas'?'design':routeName.value));
 const username=ref(''),password=ref(''),newPassword=ref(''),error=ref(''),busy=ref(false),dialogText=ref('');
-const page=computed(()=>{const requestedName=route.value.split('?')[0].split('/')[2]||'home';const name=['post','publish','user'].includes(requestedName)?'community':requestedName;return pageModules['./pages/'+name+'/Page.vue']||pageModules['./pages/home/Page.vue'];});
+const page=computed(()=>pageModules['./pages/'+routeName.value+'/Page.vue']||pageModules['./pages/home/Page.vue']);
 function ChangeRoute(){const nextRoute=location.hash.slice(1)||'/pages/home/index';console.log('[开始] 浏览器导航保存检查');if(ShouldBlockNavigation()){console.log('[分支] 保留当前排版，等待保存决定');history.replaceState(history.state,'','#'+route.value);currentPage.pendingNavigation=()=>Navigate(nextRoute);currentPage.Leave();console.log('[结束] 浏览器导航保存检查；提前等待');return;}console.log('[分支] 切换页面；[结束] 浏览器导航保存检查');route.value=nextRoute;history.replaceState({naturePage:route.value!='/pages/home/index'},'');window.scrollTo(0,0);}
 async function Submit(){busy.value=true;error.value='';const action=authState.mustChange?AuthRequest('password',{current_password:password.value,new_password:newPassword.value}).then(()=>RefreshSession()):Authenticate(username.value,password.value);await action.then(()=>{password.value='';newPassword.value='';console.log('[开始] 登录后权限路由');if(authState.user?.restricted){console.log('[分支] 账号申诉');Navigate('/pages/support/index',true);}else{console.log('[分支] 普通账号');}console.log('[结束] 登录后权限路由');},failure=>{error.value=failure.message;});busy.value=false;}
 function SubmitDialog(confirm:boolean,tapIndex?:number){ResolveDialog({confirm,cancel:!confirm,tapIndex,content:dialogText.value});dialogText.value='';}

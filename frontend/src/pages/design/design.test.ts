@@ -46,3 +46,38 @@ test('title and paper color participate in unsaved state',()=>{
   editor.Undo();expect(editor.data.backgroundColor).toBe('#ffffff');expect(editor.data.dirty).toBe(false);
   vi.unstubAllGlobals();
 });
+
+test('failed library image loading leaves the previous layout and unlocks editing',async()=>{
+  const editor=BuildEditor(),before=structuredClone(editor.layout);
+  editor.data.assets=[{id:'broken',url:'/broken.png'}];
+  const {loadImages}=await import('../../engine/render');vi.mocked(loadImages).mockRejectedValueOnce(new Error('素材加载失败'));
+  await expect(editor.InsertAsset('broken')).rejects.toThrow('素材加载失败');
+  expect(editor.layout).toEqual(before);expect(editor.data.busy).toBe(false);
+  vi.unstubAllGlobals();
+});
+
+test('staying in the editor cancels a pending tab navigation',()=>{
+  const editor=BuildEditor();editor.pendingNavigation=vi.fn();editor.data.showLeave=true;editor.Stay();
+  expect(editor.pendingNavigation).toBeNull();expect(editor.data.showLeave).toBe(false);vi.unstubAllGlobals();
+});
+
+
+test('toolbar windows toggle without changing the canvas',()=>{
+  const editor=BuildEditor(),before=structuredClone(editor.layout);
+  for(const [action,panel] of [['Materials','library-assets'],['Templates','library-templates'],['Layers','layers']]){
+    editor[action]();expect(editor.data.panel).toBe(panel);
+    editor[action]();expect(editor.data.panel).toBe('');
+  }
+  editor.data.drawingMode=true;editor.data.toolPanel='brush';editor.data.brushPopup='color';
+  editor.CloseDrawingTools();expect(editor.data.toolPanel).toBe('');expect(editor.data.brushPopup).toBe('');expect(editor.data.drawingMode).toBe(true);
+  expect(editor.layout).toEqual(before);vi.unstubAllGlobals();
+});
+
+test('closing and reopening text keeps the draft and applying it creates one undoable edit',()=>{
+  const editor=BuildEditor();editor.Text();editor.data.textForm.text='尚未完成的观察文字';
+  editor.Text();expect(editor.data.panel).toBe('');expect(editor.layout.elements).toEqual([]);
+  editor.Text();expect(editor.data.panel).toBe('text');expect(editor.data.textForm.text).toBe('尚未完成的观察文字');
+  editor.ApplyText();expect(editor.layout.elements).toHaveLength(1);expect(editor.layout.elements[0].text).toBe('尚未完成的观察文字');
+  editor.Text();editor.data.textForm.text='另一段未应用文字';editor.ClosePanel();editor.Undo();
+  editor.Text();expect(editor.data.textForm.text).toBe('');vi.unstubAllGlobals();
+});

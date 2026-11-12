@@ -6,7 +6,6 @@ import * as components from './web/components';
 import './styles/app.css';
 import './styles/workspace.css';
 import './web/browser.css';
-import './styles/specimen.css';
 
 // 主程序
 InstallPlatform();

@@ -6,7 +6,7 @@ import {Layout} from '../../types/models';
 // 参数设置：独立设计复用笔记的渲染、手势、图片调整和历史记录。
 export default {
   ...notebook,
-  data:{...notebook.data,manual:true,title:'未命名自然笔记',assetSource:'all',backgroundColor:'#ffffff',layers:[],selectedLocked:false},
+  data:{...notebook.data,manual:true,title:'未命名自然笔记',backgroundColor:'#ffffff',layers:[],selectedLocked:false},
   createOperationId:'',
   canvasObserver:null as ResizeObserver|null,
   pendingCanvasResize:false,
@@ -32,10 +32,6 @@ export default {
     this.setData({hasBackground:true,loading:true,backgroundColor:this.layout.background});
     this.UpdateDirty();await this.SetupCanvas();
     this.canvasObserver=new ResizeObserver(()=>this.ScheduleCanvas());this.canvasObserver.observe(this.canvas);
-    console.log('[开始] 桌面素材侧栏');
-    if(window.innerWidth>=900){console.log('[分支] 展开素材');this.Materials();}
-    else{console.log('[分支] 手机按需打开素材');}
-    console.log('[结束] 桌面素材侧栏');
     this.setData({loading:false});
   },
   onShow(){},
@@ -76,13 +72,6 @@ export default {
     console.log('[结束] 文字锁定检查');notebook.Text.call(this);this.ScheduleCanvas();
   },
   PaperColor(event:any){const next=clone(this.layout!);next.background=event.detail.value;this.Commit(next);},
-  Layers(){this.FinishDrawing();this.setData({panel:'layers'});this.ScheduleCanvas();},
-  SelectLayer(event:any){this.Select(event.currentTarget.dataset.id);},
-  LayerOrder(event:any){
-    console.log('[开始] 图层排序选择');
-    if(!this.data.selectedId||this.data.selectedLocked){console.log('[分支] 请先选择并解锁图层；[结束] 图层排序选择，提前结束');return;}
-    console.log('[分支] 调整层叠；[结束] 图层排序选择');this.MoveLayer(Number(event.currentTarget.dataset.action));
-  },
   ElementAction(event:any){notebook.ElementAction.call(this,event);},
   Zoom(event:any){
     const fit=fitViewport(this.layout!,this.canvasWidth,this.canvasHeight,12).scale;
